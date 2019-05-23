@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+
+# test if barcode in correct production run and passed
+# keep up with how many boards found total
+# tempSerialTest serialnumber, date time, user
+
+
+import os
+import sys
+import traceback
+import string
+import subprocess
+import psycopg2
+from colorama import init
+from termcolor import colored, cprint
+
+init()
+
+print ("Test serial for run")
+directory = os.path.split(os.path.realpath(__file__))[0]
+
+
+print ("Connecting to database...")
+dbfile = open(directory+'/postgres_info.txt', 'r')
+postgresInfo = dbfile.read()
+dbfile.close()
+try:
+  testStorage = psycopg2.connect(postgresInfo)
+  print ("Connect success.")
+except:
+  print ("Could not connect!")
+  sys.exit(0)
+
+
+state = "testing"
+runId = '221'
+
+while (state == 'testing'):
+  # get serial number from terminal
+  print ("Enter serial number : ")
+  serialNumber = input()
+  if serialNumber == 'exit':
+    sys.exit(0)
+	
+  # check database for good board with serial number
+  testStorage = psycopg2.connect(postgresInfo)
+  cur = testStorage.cursor()
+  
+  cur.execute("""SELECT COUNT(DISTINCT serial) FROM testdata WHERE productionrunid = %s AND testresults LIKE 'Passed' AND serial = %s""",(runId,serialNumber))
+  runcount = cur.fetchone()[0]
+  print(runcount)
+  if runcount > 0:
+    print (colored("Found",'white','on_green'))
+  else:
+    print (colored("Not Found",'white','on_red'))
+  
+
+#	cursor.execute("""SELECT date FROM finishedgoodstracking WHERE date = %s""",(dateTest,))
+#	rows = cursor.fetchall()
+#	if len(rows) > 0:
+#		cursor.execute("""UPDATE finishedgoodstracking SET minirambos=%s, rambos=%s, total=%s WHERE date=%s""",(miniNum,ramboNum,total,dateTest))
+#	else:
+#		cursor.execute("""INSERT INTO finishedgoodstracking(date,minirambos,rambos,total) VALUES(%s::date,%s,%s,%s)""",(dateTest,miniNum,ramboNum,total))
+#	testStorage.commit()
+
+
+
+ # SELECT COUNT(DISTINCT serial) FROM testdata WHERE productionrunid = 221 and testresults LIKE 'Passed'
