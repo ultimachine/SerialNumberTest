@@ -13,8 +13,12 @@ import subprocess
 import psycopg2
 from colorama import init
 from termcolor import colored, cprint
+import winsound
 
+# terminal init for windows
 init()
+goodfrequency = 2500
+goodduration = 1000
 
 print ("Test serial for run")
 directory = os.path.split(os.path.realpath(__file__))[0]
@@ -34,6 +38,7 @@ except:
 
 state = "testing"
 runId = '221'
+tstuser= '1'
 
 while (state == 'testing'):
   # get serial number from terminal
@@ -42,17 +47,51 @@ while (state == 'testing'):
   if serialNumber == 'exit':
     sys.exit(0)
 	
-  # check database for good board with serial number
-  testStorage = psycopg2.connect(postgresInfo)
-  cur = testStorage.cursor()
+  conn = psycopg2.connect(postgresInfo)
+  cur = conn.cursor()
   
-  cur.execute("""SELECT COUNT(DISTINCT serial) FROM testdata WHERE productionrunid = %s AND testresults LIKE 'Passed' AND serial = %s""",(runId,serialNumber))
-  runcount = cur.fetchone()[0]
-  print(runcount)
+  cur.execute("""SELECT serial FROM testdata WHERE productionrunid = %s AND testresults LIKE 'Passed' AND serial = %s""",(runId,serialNumber))
+  rows = cur.fetchall()
+  runcount = len(rows)
+#  runcount = int(cur.fetchone()[0])
+  	
+
+ 
+  #print(runcount)
+  
+  # print results
   if runcount > 0:
-    print (colored("Found",'white','on_green'))
+    # check for found in already found boards
+    cur.execute("""SELECT serialnumber FROM tempserialtest WHERE serialnumber = %s""",(serialNumber,))
+    rows = cur.fetchall()
+    foundcount = len(rows)
+    if foundcount > 0:
+      # board already in found table
+      print (colored("Error! Already Found and in table!!!!",'white','on_yellow'))
+      winsound.Beep(500, 2000)
+      winsound.Beep(800, 2000)
+      conn.commit
+      cur.close()
+	
+    else:
+    # write found result to temp table
+      insertquery = """INSERT INTO tempserialtest (serialnumber, tstuser) VALUES (%s, %s)"""
+      cur.execute(insertquery,(serialNumber,tstuser))
+      conn.commit()
+      conn.close()
+
+      print (colored("Found",'white','on_green'))
+#      winsound.Beep(goodfrequency, goodduration)
+      winsound.Beep(2500, 1500)
+#      winsound.Beep(2500, 1000)
+
   else:
-    print (colored("Not Found",'white','on_red'))
+    print (colored("Not Found!!!!",'white','on_red'))
+    winsound.Beep(800, 2000)
+    winsound.Beep(500, 2000)
+    conn.commit
+    cur.close()
+
   
 
 #	cursor.execute("""SELECT date FROM finishedgoodstracking WHERE date = %s""",(dateTest,))
