@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-# test if barcode in correct production run and passed
-# keep up with how many boards found total
-# tempSerialTest serialnumber, date time, user
+# test if barcode in correct production run and passed testing
+# tell with how many boards found total and by user
 
 
 import os
@@ -42,8 +41,25 @@ except:
 
 
 state = "testing"
-runId = '221'
-tstuser= '1'
+runId = '-1'
+tstuser= '-1'
+
+
+# get user name from terminal
+while tstuser == '-1':
+  print ("\nEnter User ID : ")
+  tstuser = input()
+  if tstuser == 'exit':
+    sys.exit(0)
+  
+
+# get runId number from terminal
+while runId == '-1':
+  print ("\nEnter Run ID : ")
+  runId = input()
+  if runId == 'exit':
+    sys.exit(0)
+
 
 while (state == 'testing'):
   #setup database
@@ -51,11 +67,11 @@ while (state == 'testing'):
   cur = conn.cursor()
   
   #output run quantity
-  cur.execute("""SELECT COUNT(*) FROM tempserialtest""")
+  cur.execute("""SELECT COUNT(*) FROM tempserialtest WHERE runid = %s""",(runId,))
   cnt = cur.fetchone()
   countint = cnt[0]
   count = str(countint)
-  print("Count " + count)  
+  print("Count " + count + " - Run: " + runId + " - User: " + tstuser)  
 #  print("Count " + count)  
   tens = count[-2:]
   if tens[-1:] == "0":
@@ -73,15 +89,10 @@ while (state == 'testing'):
   if serialNumber == 'exit':
     sys.exit(0)
 	
-  
+  # get count of matching serial numbers from test database
   cur.execute("""SELECT serial FROM testdata WHERE productionrunid = %s AND testresults LIKE 'Passed' AND serial = %s""",(runId,serialNumber))
   rows = cur.fetchall()
   runcount = len(rows)
-#  runcount = int(cur.fetchone()[0])
-  	
-
- 
-  #print(runcount)
   
   # print results
   if runcount > 0:
@@ -92,22 +103,19 @@ while (state == 'testing'):
 	
 	
     if foundcount > 0:
-      # board already in found table
-      print (colored("Error! " + serialNumber + " Already Found and in table!!!!",'white','on_yellow'))
+      # board already in added to this shipment
+      print (colored("Error! " + serialNumber + " Already Found and in shipment table!!!!",'white','on_yellow'))
       winsound.Beep(500, 1500)
       winsound.Beep(800, 1000)
       for row in rows:
         print(str(row[0]))
-#      cur.execute("""SELECT COUNT(*) FROM tempserialtest""")
-#      count = cur.fetchone()
-#      print("Count " + str(count[0]))  
       conn.commit()
       cur.close()
 	
     else:
-    # write found result to temp table
-      insertquery = """INSERT INTO tempserialtest (serialnumber, tstuser) VALUES (%s, %s)"""
-      cur.execute(insertquery,(serialNumber,tstuser))
+    # write found board serial number to temp table
+      insertquery = """INSERT INTO tempserialtest (serialnumber, tstuser,runid) VALUES (%s, %s, %s)"""
+      cur.execute(insertquery,(serialNumber,tstuser,runId))
       conn.commit()
       cur.close()
 
@@ -117,43 +125,14 @@ while (state == 'testing'):
         winsound.Beep(3000, 800)
       else:
         winsound.Beep(2100, 800)
-#      cur.execute("""SELECT COUNT(*) FROM tempserialtest""")
-#      cnt = cur.fetchone()
-#      count = str(cnt[0])
-#      print("Count " + count)  
-#      tens = count[-2:]
-#      if tens[-1:] == "0":
-#        if tens == "00":
-#          say.say(count)
-#        else:
-#          say.say(tens)
-#        say.runAndWait()
-#      conn.commit()
-#      cur.close()
+
       
   # No test results found
   else:
     print (colored("Not Found!!!! "+ serialNumber,'white','on_red'))
     winsound.Beep(800, 1500)
     winsound.Beep(500, 1000)
-#    cur.execute("""SELECT COUNT(*) FROM tempserialtest""")
-#    count = cur.fetchone()
-#    for row in rows:
-#      print("Count " + str(count[0]))  
-      
     conn.commit()
     cur.close()
 
   
-
-#	cursor.execute("""SELECT date FROM finishedgoodstracking WHERE date = %s""",(dateTest,))
-#	rows = cursor.fetchall()
-#	if len(rows) > 0:
-#		cursor.execute("""UPDATE finishedgoodstracking SET minirambos=%s, rambos=%s, total=%s WHERE date=%s""",(miniNum,ramboNum,total,dateTest))
-#	else:
-#		cursor.execute("""INSERT INTO finishedgoodstracking(date,minirambos,rambos,total) VALUES(%s::date,%s,%s,%s)""",(dateTest,miniNum,ramboNum,total))
-#	testStorage.commit()
-
-
-
- # SELECT COUNT(DISTINCT serial) FROM testdata WHERE productionrunid = 221 and testresults LIKE 'Passed'
