@@ -64,6 +64,7 @@ while (state == 'logging'):
     
   # get serial number from terminal
   print ("\nCurrent Run ID " + runId)
+  print ("Current Operator : " + user)
   print ("Current Process " + process)
   print ("Current Process Step " + process_step)
   print ("Type exit to exit")
