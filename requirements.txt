@@ -1,0 +1,7 @@
+psycopg2
+tk
+colorama
+termcolor
+pyttsx3
+pywin32
+python-tds
