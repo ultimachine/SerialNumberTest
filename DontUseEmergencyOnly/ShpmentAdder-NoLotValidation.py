@@ -91,7 +91,7 @@ while (state == 'testing'):
     sys.exit(0)
 	
   # get count of matching serial numbers from test database
-  cur.execute("""SELECT serial FROM testdata WHERE productionrunid = %s AND testresults LIKE 'Passed' AND serial = %s""",(runId,serialNumber))
+  cur.execute("""SELECT serial FROM testdata WHERE testresults LIKE 'Passed' AND serial = %s""",(serialNumber,))
   rows = cur.fetchall()
   runcount = len(rows)
   

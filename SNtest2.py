@@ -21,8 +21,9 @@ goodfrequency = 2500
 goodduration = 1000
 
 say = pyttsx3.init()
-say.setProperty('rate', 250)
-
+say.setProperty('rate', 100) #250
+voices = say.getProperty('voices')
+say.setProperty('voice', voices[1].id)
 
 print ("Test serial for run")
 directory = os.path.split(os.path.realpath(__file__))[0]
@@ -42,7 +43,7 @@ except:
 
 state = "testing"
 runId = '-1'
-
+pcbFab = 'fineline'
 tstuser = '1'
 
 # get user name from terminal --commented to hard code single user for now
@@ -60,7 +61,11 @@ while runId == '-1':
   runId = input()
   if runId == 'exit':
     sys.exit(0)
+  print ("\nEnter PCB Fab Name")
+  pcbFab = input()
 
+  print ("\nEnter already shipped")
+  shipped = input()
 
 while (state == 'testing'):
   #setup database
@@ -72,14 +77,25 @@ while (state == 'testing'):
   cnt = cur.fetchone()
   countint = cnt[0]
   count = str(countint)
-  print("Count " + count + " - Run: " + runId + " - User: " + tstuser)  
-#  print("Count " + count)  
+  print("RunCount " + count + " - Run: " + runId + " - User: " + tstuser)  
+  boxcount = str( int(count) - int(shipped) )
+  print("BoxedCount " + boxcount )
+  say.say(boxcount)
+  
+  f = open("boxedcount.txt", "r+")
+  f.seek(0)
+  f.write(boxcount)
+  f.truncate()
+  f.close()
+  
+  '''
   tens = count[-2:]
   if tens[-1:] == "0":
     if tens == "00":
       say.say(count)
     else:
       say.say(tens)
+  '''
   say.runAndWait()
   conn.commit()
   
@@ -115,8 +131,8 @@ while (state == 'testing'):
 	
     else:
     # write found board serial number to temp table
-      insertquery = """INSERT INTO tempserialtest (serialnumber, tstuser,runid) VALUES (%s, %s, %s)"""
-      cur.execute(insertquery,(serialNumber,tstuser,runId))
+      insertquery = """INSERT INTO tempserialtest (serialnumber, tstuser,runid, pcbfab) VALUES (%s, %s, %s, %s)"""
+      cur.execute(insertquery,(serialNumber,tstuser,runId,pcbFab))
       conn.commit()
       cur.close()
 
