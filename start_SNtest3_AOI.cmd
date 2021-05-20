@@ -1,0 +1,1 @@
+python SNtest3_AOI.py

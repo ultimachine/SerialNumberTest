@@ -14,6 +14,7 @@ from colorama import init
 from termcolor import colored, cprint
 import winsound
 import pyttsx3
+import pytds #python-tds
 
 # terminal init for windows
 init()
@@ -39,7 +40,66 @@ try:
 except:
   print ("Could not connect!")
   sys.exit(0)
+ 
 
+# AOI - Get list of weekly databases
+server_smt = '168.254.0.60'
+server_tht = '168.254.0.53'
+aoi_user = 'ro'
+aoi_password = 'password'
+
+print ("Connecting to AOI database...")
+try: 
+  cnx = pytds.connect(server=server_tht, user=aoi_user, password=aoi_password, autocommit=True)
+  print ("Connect to AOI success.")
+except:
+  print ("Failed AOI connection.")
+  sys.exit(0)
+
+aoi_cursor = cnx.cursor()
+aoi_cursor.execute('SELECT TOP 20 [ResultDBName] FROM [KY_AOI].[dbo].[TB_ResultDB] order by [ResultDBName] DESC')
+databases = aoi_cursor.fetchall()
+
+def checkAOI(serialNumber):
+  returnValue = None
+  for weekly_db in databases:
+    print(weekly_db[0])
+    aoi_cursor.execute("SELECT [PanelResultAfter] FROM [" + weekly_db[0] +  "].[dbo].[TB_AOIPanel] where [PanelBarCode] = '" + serialNumber + "' " )
+    boards = aoi_cursor.fetchall()
+    if( len(boards) == 0 ):
+      continue
+
+    results = [board[0] for board in boards]
+    print(results)
+    for result in results:
+      #result = board[0]
+      print("Found result: " + str(result) + "  ",end='')
+      if( result == 12000000 or result == 11000000 ):
+        print(colored("Passed AOI",'white','on_green'))
+        winsound.Beep(3000, 200)
+        if( returnValue is None ):
+          returnValue = True
+      elif( result == 13000000 ):
+        #returnValue = False
+        print(colored("Failed AOI",'white','on_red'))
+        winsound.Beep(500, 200)
+      else:
+        #returnValue = False
+        print(colored("Unknown AOI",'white','on_red'))
+        winsound.Beep(500, 200)
+
+    if( returnValue is None):
+      returnValue = False
+    break
+
+  if( returnValue is None ):
+    returnValue = False
+    print(colored("Not Found in AOI!",'yellow'))
+    winsound.Beep(500, 800)
+    winsound.Beep(500, 800)
+
+  print("Return Value: ", returnValue)
+  return returnValue
 
 state = "testing"
 runId = '-1'
@@ -105,6 +165,8 @@ while (state == 'testing'):
   serialNumber = input()
   if serialNumber == 'exit':
     sys.exit(0)
+
+  if( checkAOI(serialNumber) is not True ): continue
 	
   # get count of matching serial numbers from test database
   cur.execute("""SELECT serial FROM testdata WHERE productionrunid = %s AND testresults LIKE 'Passed' AND serial = %s""",(runId,serialNumber))
