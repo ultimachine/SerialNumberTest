@@ -50,11 +50,13 @@ aoi_password = 'password'
 
 print ("Connecting to AOI database...")
 try: 
-  cnx = pytds.connect(server=server_tht, user=aoi_user, password=aoi_password, autocommit=True)
+  cnx = pytds.connect(server=server_tht, user=aoi_user, password=aoi_password, autocommit=True, timeout=4, login_timeout=4)
   print ("Connect to AOI success.")
-except:
+except Exception as e:
+  print(e)
   print ("Failed AOI connection.")
   sys.exit(0)
+
 
 aoi_cursor = cnx.cursor()
 aoi_cursor.execute('SELECT TOP 20 [ResultDBName] FROM [KY_AOI].[dbo].[TB_ResultDB] order by [ResultDBName] DESC')
@@ -62,6 +64,12 @@ databases = aoi_cursor.fetchall()
 
 def checkAOI(serialNumber):
   returnValue = None
+  if(len(serialNumber) == 0):
+    print(colored("Zero Length Serial Number",'white','on_red'))
+    winsound.Beep(500, 200)
+    winsound.Beep(500, 200)
+    print("Return Value: ", returnValue)
+    return False
   for weekly_db in databases:
     print(weekly_db[0])
     aoi_cursor.execute("SELECT [PanelResultAfter] FROM [" + weekly_db[0] +  "].[dbo].[TB_AOIPanel] where [PanelBarCode] = '" + serialNumber + "' " )
@@ -76,16 +84,18 @@ def checkAOI(serialNumber):
       print("Found result: " + str(result) + "  ",end='')
       if( result == 12000000 or result == 11000000 ):
         print(colored("Passed AOI",'white','on_green'))
-        winsound.Beep(3000, 200)
+        #winsound.Beep(3000, 200)
         if( returnValue is None ):
           returnValue = True
       elif( result == 13000000 ):
         #returnValue = False
         print(colored("Failed AOI",'white','on_red'))
         winsound.Beep(500, 200)
+        winsound.Beep(500, 200)
       else:
         #returnValue = False
         print(colored("Unknown AOI",'white','on_red'))
+        winsound.Beep(500, 200)
         winsound.Beep(500, 200)
 
     if( returnValue is None):
@@ -95,8 +105,8 @@ def checkAOI(serialNumber):
   if( returnValue is None ):
     returnValue = False
     print(colored("Not Found in AOI!",'yellow'))
-    winsound.Beep(500, 800)
-    winsound.Beep(500, 800)
+    winsound.Beep(500, 200)
+    winsound.Beep(500, 200)
 
   print("Return Value: ", returnValue)
   return returnValue
@@ -198,7 +208,7 @@ while (state == 'testing'):
       conn.commit()
       cur.close()
 
-      print (colored("Found "+ serialNumber,'white','on_green'))
+      print (colored("Test Found "+ serialNumber,'white','on_green'))
       newcount = countint + 1
       if str(newcount)[-1:] == "0":
         winsound.Beep(3000, 800)
@@ -208,7 +218,7 @@ while (state == 'testing'):
       
   # No test results found
   else:
-    print (colored("Not Found!!!! "+ serialNumber,'white','on_red'))
+    print (colored("Not Tested!!!",'white','on_red') + "  Send SN: " + serialNumber + colored("  to the Test Fixture... ","cyan"))
     winsound.Beep(800, 1500)
     winsound.Beep(500, 1000)
     conn.commit()

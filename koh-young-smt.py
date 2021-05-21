@@ -2,7 +2,7 @@ import pytds #python-tds
 from termcolor2 import colored
 #from termcolor import colored, cprint
 import winsound
-
+import sys
 import colorama
 colorama.init()
 
@@ -26,18 +26,19 @@ aoi_user = 'ro'
 aoi_password = 'password'
 print ("Connecting to AOI database...")
 try: 
-  cnx = pytds.connect(server=aoi_server, user=aoi_user, password=aoi_password, autocommit=True)
+  cnx = pytds.connect(server=aoi_server, user=aoi_user, password=aoi_password, autocommit=True, timeout=4, login_timeout=4)
   print ("Connect to AOI success.")
-except:
+except Exception as e:
+  print(e)
   print ("Failed AOI connection.")
   sys.exit(0)
 
 
-cur = cnx.cursor()
-cur.execute('SELECT TOP 20 [ResultDBName] FROM [KY_AOI].[dbo].[TB_ResultDB] order by [ResultDBName] DESC')
+aoi_cursor = cnx.cursor()
+aoi_cursor.execute('SELECT TOP 20 [ResultDBName] FROM [KY_AOI].[dbo].[TB_ResultDB] order by [ResultDBName] DESC')
 # Prove we got rows back
 
-databases = cur.fetchall()
+databases = aoi_cursor.fetchall()
 print("Count of DBs: " + str(len(databases)) )
 
 #print(databases[0])
@@ -51,12 +52,19 @@ print("Count of DBs: " + str(len(databases)) )
 #    print( board )
 
 
+
 def checkAOI(serialNumber):
   returnValue = None
+  if(len(serialNumber) == 0):
+    print(colored("Zero Length Serial Number",'white','on_red'))
+    winsound.Beep(500, 200)
+    winsound.Beep(500, 200)
+    print("Return Value: ", returnValue)
+    return False
   for weekly_db in databases:
     print(weekly_db[0])
-    cur.execute("SELECT [PanelResultAfter] FROM [" + weekly_db[0] +  "].[dbo].[TB_AOIPanel] where [PanelBarCode] = '" + serialNumber + "' " )
-    boards = cur.fetchall()
+    aoi_cursor.execute("SELECT [PanelResultAfter] FROM [" + weekly_db[0] +  "].[dbo].[TB_AOIPanel] where [PanelBarCode] = '" + serialNumber + "' " )
+    boards = aoi_cursor.fetchall()
     if( len(boards) == 0 ):
       continue
 
@@ -67,16 +75,18 @@ def checkAOI(serialNumber):
       print("Found result: " + str(result) + "  ",end='')
       if( result == 12000000 or result == 11000000 ):
         print(colored("Passed AOI",'white','on_green'))
-        winsound.Beep(3000, 200)
+        #winsound.Beep(3000, 200)
         if( returnValue is None ):
           returnValue = True
       elif( result == 13000000 ):
         #returnValue = False
         print(colored("Failed AOI",'white','on_red'))
         winsound.Beep(500, 200)
+        winsound.Beep(500, 200)
       else:
         #returnValue = False
         print(colored("Unknown AOI",'white','on_red'))
+        winsound.Beep(500, 200)
         winsound.Beep(500, 200)
 
     if( returnValue is None):
@@ -85,9 +95,9 @@ def checkAOI(serialNumber):
 
   if( returnValue is None ):
     returnValue = False
-    print(colored("Not Found!",'yellow'))
-    winsound.Beep(500, 800)
-    winsound.Beep(500, 800)
+    print(colored("Not Found in AOI!",'yellow'))
+    winsound.Beep(500, 200)
+    winsound.Beep(500, 200)
 
   print("Return Value: ", returnValue)
   return returnValue
