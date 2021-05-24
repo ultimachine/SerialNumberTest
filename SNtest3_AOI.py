@@ -43,73 +43,90 @@ except:
  
 
 # AOI - Get list of weekly databases
-server_smt = '168.254.0.60'
-server_tht = '168.254.0.53'
+aoi_servers = {}
+aoi_servers['SMT'] = ('168.254.0.60')
+aoi_servers['THT'] = ('168.254.0.53')
 aoi_user = 'ro'
 aoi_password = 'password'
 
-print ("Connecting to AOI database...")
-try: 
-  cnx = pytds.connect(server=server_tht, user=aoi_user, password=aoi_password, autocommit=True, timeout=4, login_timeout=4)
-  print ("Connect to AOI success.")
-except Exception as e:
-  print(e)
-  print ("Failed AOI connection.")
-  sys.exit(0)
 
 
-aoi_cursor = cnx.cursor()
-aoi_cursor.execute('SELECT TOP 20 [ResultDBName] FROM [KY_AOI].[dbo].[TB_ResultDB] order by [ResultDBName] DESC')
-databases = aoi_cursor.fetchall()
 
 def checkAOI(serialNumber):
-  returnValue = None
-  if(len(serialNumber) == 0):
-    print(colored("Zero Length Serial Number",'white','on_red'))
-    winsound.Beep(500, 200)
-    winsound.Beep(500, 200)
-    print("Return Value: ", returnValue)
-    return False
-  for weekly_db in databases:
-    print(weekly_db[0])
-    aoi_cursor.execute("SELECT [PanelResultAfter] FROM [" + weekly_db[0] +  "].[dbo].[TB_AOIPanel] where [PanelBarCode] = '" + serialNumber + "' " )
-    boards = aoi_cursor.fetchall()
-    if( len(boards) == 0 ):
-      continue
+    returnValue = None
+    for s in aoi_servers:
+      server_result = False
+      found_result = False
+      print ("Connecting to AOI database...")
+      try: 
+        cnx = pytds.connect(server=aoi_servers[s], user=aoi_user, password=aoi_password, autocommit=True, timeout=4, login_timeout=4)
+        #print ("Connect to AOI success.")
+      except Exception as e:
+        print(e)
+        print ("Failed AOI connection.")
+        sys.exit(0)
+      aoi_cursor = cnx.cursor()
+      aoi_cursor.execute('SELECT TOP 20 [ResultDBName] FROM [KY_AOI].[dbo].[TB_ResultDB] order by [ResultDBName] DESC')
+      databases = aoi_cursor.fetchall()
 
-    results = [board[0] for board in boards]
-    print(results)
-    for result in results:
-      #result = board[0]
-      print("Found result: " + str(result) + "  ",end='')
-      if( result == 12000000 or result == 11000000 ):
-        print(colored("Passed AOI",'white','on_green'))
-        #winsound.Beep(3000, 200)
-        if( returnValue is None ):
-          returnValue = True
-      elif( result == 13000000 ):
-        #returnValue = False
-        print(colored("Failed AOI",'white','on_red'))
+      if(len(serialNumber) == 0):
+        print(colored("Zero Length Serial Number",'white','on_red'))
         winsound.Beep(500, 200)
         winsound.Beep(500, 200)
-      else:
-        #returnValue = False
-        print(colored("Unknown AOI",'white','on_red'))
-        winsound.Beep(500, 200)
-        winsound.Beep(500, 200)
+        print("Return Value: ", returnValue)
+        return False
+      for weekly_db in databases:
+        #print(weekly_db[0])
+        aoi_cursor.execute("SELECT [PanelResultAfter] FROM [" + weekly_db[0] +  "].[dbo].[TB_AOIPanel] where [PanelBarCode] = '" + serialNumber + "' " )
+        boards = aoi_cursor.fetchall()
+        if( len(boards) == 0 ):
+          continue
 
-    if( returnValue is None):
+        results = [board[0] for board in boards]
+        #print(results)
+        for result in results:
+          #result = board[0]
+          print("Found result: " + str(result) + "  ",end='')
+          if( result == 12000000 or result == 11000000 ):
+            result_string = "Passed AOI " + str(s)
+            print(result_string)
+            #winsound.Beep(3000, 200)
+            server_result = True
+            found_result = True
+            if( returnValue is None ):
+              returnValue = True
+            break
+        if server_result == False:
+          for result in results:
+            if( result == 13000000 ):
+              #returnValue = False
+              print(colored("Failed AOI " + str(s),'white','on_red'))
+              winsound.Beep(500, 200)
+              winsound.Beep(500, 200)
+              found_result = True
+            else:
+              #returnValue = False
+              print(colored("Unknown AOI " + str(s),'white','on_red'))
+              winsound.Beep(500, 200)
+              winsound.Beep(500, 200)
+              found_result = True
+        if server_result == True:
+          break
+      if found_result == False:
+        server_result = False
+        print(colored("Not Found in AOI " + str(s),'white','on_red'))
+        winsound.Beep(500, 200)
+        winsound.Beep(500, 200)
+      aoi_cursor.close()
+    
+    if returnValue == None:
       returnValue = False
-    break
-
-  if( returnValue is None ):
-    returnValue = False
-    print(colored("Not Found in AOI!",'yellow'))
-    winsound.Beep(500, 200)
-    winsound.Beep(500, 200)
-
-  print("Return Value: ", returnValue)
-  return returnValue
+      print(colored("Not Passed all AOI!",'white','on_red'))
+      winsound.Beep(500, 200)
+      winsound.Beep(500, 200)
+      
+    #print("Return Value: ", returnValue)
+    return returnValue
 
 state = "testing"
 runId = '-1'
@@ -176,7 +193,6 @@ while (state == 'testing'):
   if serialNumber == 'exit':
     sys.exit(0)
 
-  if( checkAOI(serialNumber) is not True ): continue
 	
   # get count of matching serial numbers from test database
   cur.execute("""SELECT serial FROM testdata WHERE productionrunid = %s AND testresults LIKE 'Passed' AND serial = %s""",(runId,serialNumber))
@@ -184,7 +200,8 @@ while (state == 'testing'):
   runcount = len(rows)
   
   # print results
-  if runcount > 0:
+  if ( checkAOI(serialNumber) is not True ): continue
+  elif runcount > 0:
     # check for found in already found boards
     cur.execute("""SELECT time FROM tempserialtest WHERE serialnumber = %s""",(serialNumber,))
     rows = cur.fetchall()
@@ -193,7 +210,7 @@ while (state == 'testing'):
 	
     if foundcount > 0:
       # board already in added to this shipment
-      print (colored("Error! " + serialNumber + " Already Found and in shipment table!!!!",'white','on_yellow'))
+      print (colored("Error! " + serialNumber + " Already Found and in shipment table!!!!",'yellow',attrs=['reverse']))
       winsound.Beep(500, 1500)
       winsound.Beep(800, 1000)
       for row in rows:
