@@ -165,13 +165,13 @@ while (state == 'testing'):
   countint = cnt[0]
   count = str(countint)
   print("RunCount " + count + " - Run: " + runId + " - User: " + tstuser)  
-  boxcount = str( int(count) - int(shipped) )
-  print("BoxedCount " + boxcount )
-  say.say(boxcount)
+  boxedcount = str( int(count) - int(shipped) )
+  print("BoxedCount " + boxedcount )
+  say.say(boxedcount)
   
   f = open("boxedcount.txt", "r+")
   f.seek(0)
-  f.write(boxcount)
+  f.write(boxedcount)
   f.truncate()
   f.close()
   
@@ -220,8 +220,8 @@ while (state == 'testing'):
 	
     else:
     # write found board serial number to temp table
-      insertquery = """INSERT INTO tempserialtest (serialnumber, tstuser,runid, pcbfab) VALUES (%s, %s, %s, %s)"""
-      cur.execute(insertquery,(serialNumber,tstuser,runId,pcbFab))
+      insertquery = """INSERT INTO tempserialtest (serialnumber, tstuser,runid, pcbfab, boxedcount, prev_shipped) VALUES (%s, %s, %s, %s, %s, %s)"""
+      cur.execute(insertquery, (serialNumber, tstuser, runId, pcbFab, boxedcount, shipped) )
       conn.commit()
       cur.close()
 
