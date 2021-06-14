@@ -50,7 +50,7 @@ aoi_user = 'ro'
 aoi_password = 'password'
 
 
-
+import inspect
 
 def checkAOI(serialNumber):
     returnValue = None
@@ -73,7 +73,8 @@ def checkAOI(serialNumber):
         print(colored("Zero Length Serial Number",'white','on_red'))
         winsound.Beep(500, 200)
         winsound.Beep(500, 200)
-        print("Return Value: ", returnValue)
+        
+        print("Line Number: " + str(inspect.getframeinfo(inspect.currentframe()).lineno) + "  Return Value: ", returnValue)
         return False
       for weekly_db in databases:
         #print(weekly_db[0])
@@ -99,13 +100,13 @@ def checkAOI(serialNumber):
         if server_result == False:
           for result in results:
             if( result == 13000000 ):
-              #returnValue = False
+              returnValue = False
               print(colored("Failed AOI " + str(s),'white','on_red'))
               winsound.Beep(500, 200)
               winsound.Beep(500, 200)
               found_result = True
             else:
-              #returnValue = False
+              returnValue = False
               print(colored("Unknown AOI " + str(s),'white','on_red'))
               winsound.Beep(500, 200)
               winsound.Beep(500, 200)
@@ -118,6 +119,9 @@ def checkAOI(serialNumber):
         winsound.Beep(500, 200)
         winsound.Beep(500, 200)
       aoi_cursor.close()
+      if found_result == False:
+        print("Line Number: " + str(inspect.getframeinfo(inspect.currentframe()).lineno) + "  Return Value: ", returnValue)
+        return False
     
     if returnValue == None:
       returnValue = False
@@ -125,7 +129,7 @@ def checkAOI(serialNumber):
       winsound.Beep(500, 200)
       winsound.Beep(500, 200)
       
-    #print("Return Value: ", returnValue)
+    print("Line Number: " + str(inspect.getframeinfo(inspect.currentframe()).lineno) + "  Return Value: ", returnValue)
     return returnValue
 
 state = "testing"
