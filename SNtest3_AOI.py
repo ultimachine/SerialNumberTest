@@ -15,6 +15,7 @@ from termcolor import colored, cprint
 import winsound
 import pyttsx3
 import pytds #python-tds
+import inspect
 
 # terminal init for windows
 init()
@@ -44,93 +45,72 @@ except:
 
 # AOI - Get list of weekly databases
 aoi_servers = {}
-aoi_servers['SMT'] = ('168.254.0.60')
-aoi_servers['THT'] = ('168.254.0.53')
+smt_aoi_server = ('168.254.0.60')
+tht_aoi_server = ('168.254.0.53')
 aoi_user = 'ro'
 aoi_password = 'password'
 
+def checkAOI(serialNumber, aoi_server, server_name):
+  returnValue = None
 
-import inspect
+  print ("Connecting to AOI database...")
+  try: 
+    cnx = pytds.connect(server=aoi_server, user=aoi_user, password=aoi_password, autocommit=True, timeout=4, login_timeout=4)
+    #print ("Connect to AOI success.")
+  except Exception as e:
+    print(e)
+    print ("Failed AOI connection.")
+    sys.exit(0)
+  aoi_cursor = cnx.cursor()
+  aoi_cursor.execute('SELECT TOP 20 [ResultDBName] FROM [KY_AOI].[dbo].[TB_ResultDB] order by [ResultDBName] DESC')
+  databases = aoi_cursor.fetchall()
 
-def checkAOI(serialNumber):
-    returnValue = None
-    for s in aoi_servers:
-      server_result = False
-      found_result = False
-      print ("Connecting to AOI database...")
-      try: 
-        cnx = pytds.connect(server=aoi_servers[s], user=aoi_user, password=aoi_password, autocommit=True, timeout=4, login_timeout=4)
-        #print ("Connect to AOI success.")
-      except Exception as e:
-        print(e)
-        print ("Failed AOI connection.")
-        sys.exit(0)
-      aoi_cursor = cnx.cursor()
-      aoi_cursor.execute('SELECT TOP 20 [ResultDBName] FROM [KY_AOI].[dbo].[TB_ResultDB] order by [ResultDBName] DESC')
-      databases = aoi_cursor.fetchall()
+  if(len(serialNumber) == 0):
+    print(colored("Zero Length Serial Number",'white','on_red'))
+    winsound.Beep(500, 200)
+    winsound.Beep(500, 200)
+    print("Return Value: ", returnValue)
+    return False
+  for weekly_db in databases:
+    #print(weekly_db[0])
+    aoi_cursor.execute("SELECT [PanelResultAfter] FROM [" + weekly_db[0] +  "].[dbo].[TB_AOIPanel] where [PanelBarCode] = '" + serialNumber + "' " )
+    boards = aoi_cursor.fetchall()
+    if( len(boards) == 0 ):
+      continue
 
-      if(len(serialNumber) == 0):
-        print(colored("Zero Length Serial Number",'white','on_red'))
+    results = [board[0] for board in boards]
+    #print(results)
+    for result in results:
+      #result = board[0]
+      print("Found result: " + str(result) + "  ",end='')
+      if( result == 12000000 or result == 11000000 ):
+        print(colored("Passed " + server_name + " AOI",'white','on_green'))
+        #winsound.Beep(3000, 200)
+        if( returnValue is None ):
+          returnValue = True
+      elif( result == 13000000 ):
+        #returnValue = False
+        print(colored("Failed " + server_name + " AOI",'white','on_red'))
         winsound.Beep(500, 200)
         winsound.Beep(500, 200)
-        
-        print("Line Number: " + str(inspect.getframeinfo(inspect.currentframe()).lineno) + "  Return Value: ", returnValue)
-        return False
-      for weekly_db in databases:
-        #print(weekly_db[0])
-        aoi_cursor.execute("SELECT [PanelResultAfter] FROM [" + weekly_db[0] +  "].[dbo].[TB_AOIPanel] where [PanelBarCode] = '" + serialNumber + "' " )
-        boards = aoi_cursor.fetchall()
-        if( len(boards) == 0 ):
-          continue
+      else:
+        #returnValue = False
+        print(colored("Unknown " + server_name + " AOI",'white','on_red'))
+        winsound.Beep(500, 200)
+        winsound.Beep(500, 200)
 
-        results = [board[0] for board in boards]
-        #print(results)
-        for result in results:
-          #result = board[0]
-          print("Found result: " + str(result) + "  ",end='')
-          if( result == 12000000 or result == 11000000 ):
-            result_string = "Passed AOI " + str(s)
-            print(result_string)
-            #winsound.Beep(3000, 200)
-            server_result = True
-            found_result = True
-            if( returnValue is None ):
-              returnValue = True
-            break
-        if server_result == False:
-          for result in results:
-            if( result == 13000000 ):
-              returnValue = False
-              print(colored("Failed AOI " + str(s),'white','on_red'))
-              winsound.Beep(500, 200)
-              winsound.Beep(500, 200)
-              found_result = True
-            else:
-              returnValue = False
-              print(colored("Unknown AOI " + str(s),'white','on_red'))
-              winsound.Beep(500, 200)
-              winsound.Beep(500, 200)
-              found_result = True
-        if server_result == True:
-          break
-      if found_result == False:
-        server_result = False
-        print(colored("Not Found in AOI " + str(s),'white','on_red'))
-        winsound.Beep(500, 200)
-        winsound.Beep(500, 200)
-      aoi_cursor.close()
-      if found_result == False:
-        print("Line Number: " + str(inspect.getframeinfo(inspect.currentframe()).lineno) + "  Return Value: ", returnValue)
-        return False
-    
-    if returnValue == None:
+    if( returnValue is None):
       returnValue = False
-      print(colored("Not Passed all AOI!",'white','on_red'))
-      winsound.Beep(500, 200)
-      winsound.Beep(500, 200)
-      
-    print("Line Number: " + str(inspect.getframeinfo(inspect.currentframe()).lineno) + "  Return Value: ", returnValue)
-    return returnValue
+    break
+
+  if( returnValue is None ):
+    returnValue = False
+    print(colored("Not Found in " + server_name + " AOI!",'yellow'))
+    winsound.Beep(500, 200)
+    winsound.Beep(500, 200)
+
+  print("Return Value: ", returnValue)
+  return returnValue
 
 state = "testing"
 runId = '-1'
@@ -204,7 +184,12 @@ while (state == 'testing'):
   runcount = len(rows)
   
   # print results
-  if ( checkAOI(serialNumber) is not True ): continue
+  results = []
+  results += [checkAOI(serialNumber,smt_aoi_server,"SMT")]
+  results += [checkAOI(serialNumber,tht_aoi_server,"THT")]
+  if results[0] is not True: continue
+  if results[1] is not True: continue
+
   elif runcount > 0:
     # check for found in already found boards
     cur.execute("""SELECT time FROM tempserialtest WHERE serialnumber = %s""",(serialNumber,))
